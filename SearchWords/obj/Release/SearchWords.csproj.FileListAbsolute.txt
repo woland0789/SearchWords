@@ -1,0 +1,7 @@
+C:\Work\SearchWords\SearchWords\bin\Release\SearchWords.exe.config
+C:\Work\SearchWords\SearchWords\bin\Release\SearchWords.exe
+C:\Work\SearchWords\SearchWords\bin\Release\SearchWords.pdb
+C:\Work\SearchWords\SearchWords\obj\Release\SearchWords.csproj.CoreCompileInputs.cache
+C:\Work\SearchWords\SearchWords\obj\Release\SearchWords.exe
+C:\Work\SearchWords\SearchWords\obj\Release\SearchWords.pdb
+C:\Work\SearchWords\SearchWords\obj\Release\SearchWords.csprojAssemblyReference.cache

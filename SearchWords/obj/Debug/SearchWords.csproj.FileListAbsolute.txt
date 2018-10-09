@@ -1,0 +1,7 @@
+C:\Work\SearchWords\SearchWords\bin\Debug\SearchWords.exe.config
+C:\Work\SearchWords\SearchWords\bin\Debug\SearchWords.exe
+C:\Work\SearchWords\SearchWords\bin\Debug\SearchWords.pdb
+C:\Work\SearchWords\SearchWords\obj\Debug\SearchWords.csprojAssemblyReference.cache
+C:\Work\SearchWords\SearchWords\obj\Debug\SearchWords.csproj.CoreCompileInputs.cache
+C:\Work\SearchWords\SearchWords\obj\Debug\SearchWords.exe
+C:\Work\SearchWords\SearchWords\obj\Debug\SearchWords.pdb
