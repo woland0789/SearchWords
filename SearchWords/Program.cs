@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -13,34 +12,41 @@ namespace SearchWords
 	{
 		private static Dictionary<string, int> WordList { get; set; }
 		private static readonly Regex Regex = new Regex(@"\w*[-|\w]\w*");
-		private static int WordLength;
+		private static int _wordLength;
 
 		static void Main(string[] args)
 		{
 			var path = ConfigurationManager.AppSettings["Path"];
-			int.TryParse(ConfigurationManager.AppSettings["Length"], out WordLength);
 
-			WordList = new Dictionary<string, int>();
-			if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
+			if (!int.TryParse(ConfigurationManager.AppSettings["Length"], out _wordLength))
 			{
-				Console.WriteLine("The path to the directory is not correctly specified");
+				Console.WriteLine("The Length parameter in the configuration file is invalid");
 			}
 			else
 			{
-				var fileNames = Directory.GetFiles(path, "*.txt");
+				WordList = new Dictionary<string, int>();
 
-				var tasks = new Task[fileNames.Length];
-
-				for (var i = 0; i < fileNames.Length; i++)
+				if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
 				{
-					tasks[i] = GetWords(fileNames[i]);
+					Console.WriteLine("The path to the directory is not correctly specified");
 				}
-
-				Task.WaitAll(tasks);
-
-				foreach (var j in WordList.OrderByDescending(x => x.Value).Take(10))
+				else
 				{
-					Console.WriteLine($"{j.Key} : {j.Value}");
+					var fileNames = Directory.GetFiles(path, "*.txt");
+
+					var tasks = new Task[fileNames.Length];
+
+					for (var i = 0; i < fileNames.Length; i++)
+					{
+						tasks[i] = ProcessFile(fileNames[i]);
+					}
+
+					Task.WaitAll(tasks);
+
+					foreach (var j in WordList.OrderByDescending(x => x.Value).Take(10))
+					{
+						Console.WriteLine($"{j.Key} : {j.Value}");
+					}
 				}
 			}
 
@@ -49,7 +55,7 @@ namespace SearchWords
 			Console.ReadKey();
 		}
 
-		public static Task GetWords(string fileName)
+		public static Task ProcessFile(string fileName)
 		{
 			var task = new Task(() =>
 			{
@@ -61,7 +67,7 @@ namespace SearchWords
 						var words = Regex.Matches(line)
 							.OfType<Match>()
 							.Select(m => m.Groups[0].Value)
-							.Where(x => x.Length >= WordLength)
+							.Where(x => x.Length >= _wordLength)
 							.ToArray();
 						foreach (var word in words)
 						{
