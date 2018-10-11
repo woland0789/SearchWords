@@ -4,6 +4,7 @@ using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SearchWords
@@ -11,12 +12,14 @@ namespace SearchWords
 	class Program
 	{
 		private static Dictionary<string, int> WordList { get; set; }
-		private static readonly Regex Regex = new Regex(@"\w*[-|\w]\w*");
+		private static Regex _regex;
 		private static int _wordLength;
 
 		static void Main(string[] args)
 		{
 			var path = ConfigurationManager.AppSettings["Path"];
+
+			ThreadPoolInit();
 
 			if (!int.TryParse(ConfigurationManager.AppSettings["Length"], out _wordLength))
 			{
@@ -25,6 +28,7 @@ namespace SearchWords
 			else
 			{
 				WordList = new Dictionary<string, int>();
+				_regex = new Regex(@"\w{" + _wordLength + ",}");
 
 				if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
 				{
@@ -34,14 +38,28 @@ namespace SearchWords
 				{
 					var fileNames = Directory.GetFiles(path, "*.txt");
 
-					var tasks = new Task[fileNames.Length];
+					var tasks = new Task<Dictionary<string, int>>[fileNames.Length];
 
 					for (var i = 0; i < fileNames.Length; i++)
 					{
 						tasks[i] = ProcessFile(fileNames[i]);
 					}
 
-					Task.WaitAll(tasks);
+					var task = Task.WhenAll(tasks);
+					foreach (var words in task.Result)
+					{
+						foreach (var word in words)
+						{
+							if (WordList.ContainsKey(word.Key))
+							{
+								WordList[word.Key] += word.Value;
+							}
+							else
+							{
+								WordList.Add(word.Key, word.Value);
+							}
+						}
+					}
 
 					foreach (var j in WordList.OrderByDescending(x => x.Value).Take(10))
 					{
@@ -55,36 +73,41 @@ namespace SearchWords
 			Console.ReadKey();
 		}
 
-		public static Task ProcessFile(string fileName)
+		private static void ThreadPoolInit()
 		{
-			var task = new Task(() =>
+			ThreadPool.GetMinThreads(out var workerThreads, out var completionPortThreads);
+			ThreadPool.SetMinThreads(4, completionPortThreads);
+			ThreadPool.SetMaxThreads(4, completionPortThreads);
+		}
+
+		public static Task<Dictionary<string, int>> ProcessFile(string fileName)
+		{
+			var task = new Task<Dictionary<string, int>>(() =>
 			{
+				var result = new Dictionary<string, int>();
 				using (var streammReader = new StreamReader(fileName))
 				{
 					string line;
 					while ((line = streammReader.ReadLine()) != null)
 					{
-						var words = Regex.Matches(line)
+						var words = _regex.Matches(line)
 							.OfType<Match>()
-							.Select(m => m.Groups[0].Value)
-							.Where(x => x.Length >= _wordLength)
-							.ToArray();
+							.Select(m => m.Groups[0].Value);
 						foreach (var word in words)
 						{
-							lock (WordList)
+							if (result.ContainsKey(word))
 							{
-								if (WordList.ContainsKey(word))
-								{
-									WordList[word]++;
-								}
-								else
-								{
-									WordList.Add(word, 1);
-								}
+								result[word]++;
+							}
+							else
+							{
+								result.Add(word, 1);
 							}
 						}
 					}
 				}
+
+				return result;
 			});
 
 			task.Start();
