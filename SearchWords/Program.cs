@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
@@ -11,7 +12,7 @@ namespace SearchWords
 {
 	class Program
 	{
-		private static Dictionary<string, int> WordList { get; set; }
+		private static ConcurrentDictionary<string, int> WordList { get; set; }
 		private static Regex _regex;
 		private static int _wordLength;
 
@@ -27,7 +28,7 @@ namespace SearchWords
 			}
 			else
 			{
-				WordList = new Dictionary<string, int>();
+				WordList = new ConcurrentDictionary<string, int>();
 				_regex = new Regex(@"\w{" + _wordLength + ",}");
 
 				if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
@@ -38,28 +39,14 @@ namespace SearchWords
 				{
 					var fileNames = Directory.GetFiles(path, "*.txt");
 
-					var tasks = new Task<Dictionary<string, int>>[fileNames.Length];
+					var tasks = new Task[fileNames.Length];
 
 					for (var i = 0; i < fileNames.Length; i++)
 					{
 						tasks[i] = ProcessFile(fileNames[i]);
 					}
 
-					var task = Task.WhenAll(tasks);
-					foreach (var words in task.Result)
-					{
-						foreach (var word in words)
-						{
-							if (WordList.ContainsKey(word.Key))
-							{
-								WordList[word.Key] += word.Value;
-							}
-							else
-							{
-								WordList.Add(word.Key, word.Value);
-							}
-						}
-					}
+					Task.WaitAll(tasks);
 
 					foreach (var j in WordList.OrderByDescending(x => x.Value).Take(10))
 					{
@@ -76,15 +63,14 @@ namespace SearchWords
 		private static void ThreadPoolInit()
 		{
 			ThreadPool.GetMinThreads(out var workerThreads, out var completionPortThreads);
-			ThreadPool.SetMinThreads(4, completionPortThreads);
-			ThreadPool.SetMaxThreads(4, completionPortThreads);
+			ThreadPool.SetMinThreads(Environment.ProcessorCount, completionPortThreads);
+			ThreadPool.SetMaxThreads(Environment.ProcessorCount, completionPortThreads);
 		}
 
-		public static Task<Dictionary<string, int>> ProcessFile(string fileName)
+		public static Task ProcessFile(string fileName)
 		{
-			var task = new Task<Dictionary<string, int>>(() =>
+			var task = new Task(() =>
 			{
-				var result = new Dictionary<string, int>();
 				using (var streammReader = new StreamReader(fileName))
 				{
 					string line;
@@ -95,19 +81,10 @@ namespace SearchWords
 							.Select(m => m.Groups[0].Value);
 						foreach (var word in words)
 						{
-							if (result.ContainsKey(word))
-							{
-								result[word]++;
-							}
-							else
-							{
-								result.Add(word, 1);
-							}
+							WordList.AddOrUpdate(word, s => 1, (s, i) => ++i);
 						}
 					}
 				}
-
-				return result;
 			});
 
 			task.Start();
